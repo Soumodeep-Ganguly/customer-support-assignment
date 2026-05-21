@@ -3,12 +3,11 @@ import { Message } from '../models/Message'
 import { Ticket } from '../models/Ticket'
 import { AppError } from '../middleware/errorHandler'
 import { generateSuggestedReplies, summarizeConversation } from '../services/aiService'
+import { buildTicketFilter } from '../utils/filters'
 import type { AuthRequest } from '../types'
 
 export async function suggestReply(req: AuthRequest, res: Response): Promise<void> {
-  const isAdmin = req.user!.role === 'admin'
-  const filter: Record<string, unknown> = { _id: req.params.ticketId }
-  if (!isAdmin) filter.user = req.user!.userId
+  const { filter } = buildTicketFilter(req, 'ticketId')
 
   const ticket = await Ticket.findOne(filter)
   if (!ticket) {
@@ -30,9 +29,7 @@ export async function suggestReply(req: AuthRequest, res: Response): Promise<voi
 }
 
 export async function summarizeTicket(req: AuthRequest, res: Response): Promise<void> {
-  const isAdmin = req.user!.role === 'admin'
-  const filter: Record<string, unknown> = { _id: req.params.ticketId }
-  if (!isAdmin) filter.user = req.user!.userId
+  const { filter } = buildTicketFilter(req, 'ticketId')
 
   const ticket = await Ticket.findOne(filter)
   if (!ticket) {

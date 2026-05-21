@@ -4,6 +4,7 @@ import { Message } from '../models/Message'
 import { AppError } from '../middleware/errorHandler'
 import { findOrCreateUser } from '../services/userService'
 import { signToken } from '../utils/jwt'
+import { buildTicketFilter } from '../utils/filters'
 import { getIO } from '../sockets'
 import type { AuthRequest } from '../types'
 
@@ -68,11 +69,7 @@ export async function getTickets(req: AuthRequest, res: Response): Promise<void>
   const skip = (page - 1) * limit
   const status = req.query.status as string | undefined
 
-  const isAdmin = req.user!.role === 'admin'
-  const filter: Record<string, unknown> = {}
-  if (!isAdmin) {
-    filter.user = req.user!.userId
-  }
+  const { filter } = buildTicketFilter(req)
   if (status && ['open', 'in_progress', 'resolved', 'closed'].includes(status)) {
     filter.status = status
   }
@@ -94,9 +91,7 @@ export async function getTickets(req: AuthRequest, res: Response): Promise<void>
 }
 
 export async function getTicket(req: AuthRequest, res: Response): Promise<void> {
-  const isAdmin = req.user!.role === 'admin'
-  const filter: Record<string, unknown> = { _id: req.params.id }
-  if (!isAdmin) filter.user = req.user!.userId
+  const { filter } = buildTicketFilter(req, 'id')
 
   const ticket = await Ticket.findOne(filter).populate('user', 'name email')
 
@@ -109,9 +104,7 @@ export async function getTicket(req: AuthRequest, res: Response): Promise<void> 
 
 export async function updateTicket(req: AuthRequest, res: Response): Promise<void> {
   const { status, priority } = req.body
-  const isAdmin = req.user!.role === 'admin'
-  const filter: Record<string, unknown> = { _id: req.params.id }
-  if (!isAdmin) filter.user = req.user!.userId
+  const { filter } = buildTicketFilter(req, 'id')
 
   const ticket = await Ticket.findOneAndUpdate(filter,
     { ...(status && { status }), ...(priority && { priority }) },
@@ -126,9 +119,7 @@ export async function updateTicket(req: AuthRequest, res: Response): Promise<voi
 }
 
 export async function deleteTicket(req: AuthRequest, res: Response): Promise<void> {
-  const isAdmin = req.user!.role === 'admin'
-  const filter: Record<string, unknown> = { _id: req.params.id }
-  if (!isAdmin) filter.user = req.user!.userId
+  const { filter } = buildTicketFilter(req, 'id')
 
   const ticket = await Ticket.findOneAndDelete(filter)
 

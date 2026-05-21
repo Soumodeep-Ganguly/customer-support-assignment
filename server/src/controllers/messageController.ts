@@ -3,6 +3,7 @@ import { Message } from '../models/Message'
 import { Ticket } from '../models/Ticket'
 import { AppError } from '../middleware/errorHandler'
 import { analyzeSentiment } from '../services/aiService'
+import { buildTicketFilter } from '../utils/filters'
 import { getIO } from '../sockets'
 import type { AuthRequest, Sentiment } from '../types'
 
@@ -11,9 +12,7 @@ export async function getMessages(req: AuthRequest, res: Response): Promise<void
   const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 50))
   const skip = (page - 1) * limit
 
-  const isAdmin = req.user!.role === 'admin'
-  const filter: Record<string, unknown> = { _id: req.params.ticketId }
-  if (!isAdmin) filter.user = req.user!.userId
+  const { filter } = buildTicketFilter(req, 'ticketId')
 
   const ticket = await Ticket.findOne(filter)
   if (!ticket) {
@@ -47,9 +46,7 @@ export async function sendMessage(req: AuthRequest, res: Response): Promise<void
     throw new AppError('Message content is required', 400)
   }
 
-  const isAdmin = req.user!.role === 'admin'
-  const filter: Record<string, unknown> = { _id: req.params.ticketId }
-  if (!isAdmin) filter.user = req.user!.userId
+  const { filter } = buildTicketFilter(req, 'ticketId')
 
   const ticket = await Ticket.findOne(filter)
   if (!ticket) {

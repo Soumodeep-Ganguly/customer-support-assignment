@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { useSocket } from '@/context/SocketContext'
 import api from '@/services/api'
+import { useMessages } from '@/hooks/useMessages'
 import MessageBubble from '@/components/MessageBubble'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -23,7 +24,6 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { Sparkles, FileText, Send, AlertCircle, Check, ArrowLeft } from 'lucide-react'
-import type { Message, Pagination } from '@/types'
 
 const statusVariants: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
   open: 'default',
@@ -37,20 +37,18 @@ export default function TicketDetailPanel() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const socket = useSocket()
+  const { messages, pagination, page, setPage, loading, sending, fetchMessages, handleSend: sendMessage } = useMessages(ticketId)
 
   const [ticket, setTicket] = useState<any>(null)
-  const [messages, setMessages] = useState<Message[]>([])
-  const [pagination, setPagination] = useState<Pagination | null>(null)
-  const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
-  const [sending, setSending] = useState(false)
   const [messageText, setMessageText] = useState('')
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [generating, setGenerating] = useState(false)
   const [summarizing, setSummarizing] = useState(false)
   const [error, setError] = useState('')
+  const [typingUsers, setTypingUsers] = useState<Record<string, string>>({})
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const typingTimeoutRef = useRef<NodeJS.Timeout>()
 
   const fetchTicket = useCallback(async () => {
     if (!ticketId) return
@@ -62,20 +60,7 @@ export default function TicketDetailPanel() {
     }
   }, [ticketId])
 
-  const fetchMessages = useCallback(async () => {
-    if (!ticketId) return
-    try {
-      const res = await api.get(`/tickets/${ticketId}/messages?page=${page}&limit=50`)
-      setMessages(res.data.messages)
-      setPagination(res.data.pagination)
-    } finally {
-      setLoading(false)
-    }
-  }, [ticketId, page])
-
   useEffect(() => {
-    setLoading(true)
-    setMessages([])
     setTicket(null)
     setError('')
     setPage(1)
@@ -86,47 +71,53 @@ export default function TicketDetailPanel() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  }, [messages, typingUsers])
 
   useEffect(() => {
     if (!socket || !ticketId) return
 
-    socket.emit('join:ticket', ticketId)
-
-    const handleNewMessage = (message: Message) => {
-      setMessages((prev) => {
-        if (prev.some((m) => m._id === message._id)) return prev
-        return [message, ...prev]
+    const handleUserTyping = ({ userId, email, isTyping }: { userId: string; email: string; isTyping: boolean }) => {
+      if (userId === user?.id) return
+      setTypingUsers((prev) => {
+        if (isTyping) return { ...prev, [userId]: email }
+        const next = { ...prev }
+        delete next[userId]
+        return next
       })
     }
 
-    socket.on('message:new', handleNewMessage)
+    socket.on('user:typing', handleUserTyping)
 
     return () => {
-      socket.emit('leave:ticket', ticketId)
-      socket.off('message:new', handleNewMessage)
+      socket.off('user:typing', handleUserTyping)
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
     }
-  }, [socket, ticketId])
+  }, [socket, ticketId, user?.id])
+
+  const handleTyping = () => {
+    if (!socket || !ticketId) return
+    socket.emit('typing', { ticketId, isTyping: true })
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+    typingTimeoutRef.current = setTimeout(() => {
+      socket.emit('typing', { ticketId, isTyping: false })
+    }, 2000)
+  }
 
   const handleSend = async () => {
     if (!messageText.trim() || sending || !ticketId) return
-    setSending(true)
     setError('')
     try {
-      const res = await api.post(`/tickets/${ticketId}/messages`, { content: messageText })
-      setMessages((prev) => {
-        if (prev.some((m) => m._id === res.data.message._id)) return prev
-        return [res.data.message, ...prev]
-      })
+      await sendMessage(messageText)
       setMessageText('')
+      if (socket && ticketId) {
+        socket.emit('typing', { ticketId, isTyping: false })
+      }
 
       if (ticket?.status === 'open') {
         setTicket((prev: any) => ({ ...prev, status: 'in_progress' }))
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to send message')
-    } finally {
-      setSending(false)
     }
   }
 
@@ -269,6 +260,11 @@ export default function TicketDetailPanel() {
                 isOwn={typeof msg.sender === 'object' && msg.sender._id === user?.id}
               />
             ))}
+            {Object.keys(typingUsers).length > 0 && (
+              <div className="text-xs text-muted-foreground italic px-1">
+                {Object.values(typingUsers).join(', ')} typing...
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
         )}
@@ -279,7 +275,7 @@ export default function TicketDetailPanel() {
           <Input
             placeholder="Type your message..."
             value={messageText}
-            onChange={(e) => setMessageText(e.target.value)}
+            onChange={(e) => { setMessageText(e.target.value); handleTyping() }}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             disabled={ticket.status === 'closed'}
           />

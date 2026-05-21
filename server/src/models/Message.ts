@@ -15,7 +15,7 @@ const messageSchema = new Schema<IMessage>(
     ticket: { type: Schema.Types.ObjectId, ref: 'Ticket', required: true, index: true },
     sender: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     content: { type: String, required: true },
-    role: { type: String, enum: ['user', 'ai', 'system'], required: true },
+    role: { type: String, enum: ['user', 'system'], required: true },
     sentiment: {
       type: String,
       enum: ['positive', 'negative', 'neutral', 'urgent'],

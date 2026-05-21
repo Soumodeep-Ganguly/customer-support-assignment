@@ -108,9 +108,9 @@ server/                     # Express + TypeScript backend
 
 ### MongoDB Schema Design
 
-- **User** — name, email (unique), hashed password, role (customer/agent/admin)
+- **User** — name, email (unique), hashed password, role (customer/admin)
 - **Ticket** — title, status, priority, user (ref User), summary (AI-generated), timestamps
-- **Message** — ticket (ref Ticket), sender (ref User), content, role (user/ai/system), sentiment (AI-tagged), timestamps
+- **Message** — ticket (ref Ticket), sender (ref User), content, role (user/system), sentiment (AI-tagged), timestamps
 
 All relationships use `ObjectId` references with `.populate()` for efficient querying.
 

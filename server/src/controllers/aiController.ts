@@ -21,7 +21,7 @@ export async function suggestReply(req: AuthRequest, res: Response): Promise<voi
 
   const history = recentMessages
     .reverse()
-    .map((m) => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content }))
+    .map((m) => ({ role: 'user', content: m.content }))
 
   const suggestions = await generateSuggestedReplies(ticket.title, history)
 
@@ -41,7 +41,7 @@ export async function summarizeTicket(req: AuthRequest, res: Response): Promise<
     .populate('sender', 'name')
 
   const conversation = allMessages.map((m) => ({
-    role: m.role === 'ai' ? 'assistant' : m.sender._id.toString() === req.user!.userId ? 'customer' : 'agent',
+    role: m.sender._id.toString() === req.user!.userId ? 'customer' : 'agent',
     content: m.content,
   }))
 

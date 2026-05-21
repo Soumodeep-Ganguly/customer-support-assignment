@@ -2,7 +2,7 @@ export interface User {
   id: string
   name: string
   email: string
-  role: 'customer' | 'agent' | 'admin'
+  role: 'customer' | 'admin'
 }
 
 export interface Ticket {
@@ -21,7 +21,7 @@ export interface Message {
   ticket: string | Ticket
   sender: User | string
   content: string
-  role: 'user' | 'ai' | 'system'
+  role: 'user' | 'system'
   sentiment: 'positive' | 'negative' | 'neutral' | 'urgent'
   createdAt: string
 }

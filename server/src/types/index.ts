@@ -3,7 +3,7 @@ import { Request } from 'express'
 export interface AuthPayload {
   userId: string
   email: string
-  role: 'customer' | 'agent' | 'admin'
+  role: 'customer' | 'admin'
 }
 
 export interface AuthRequest extends Request {
@@ -12,7 +12,7 @@ export interface AuthRequest extends Request {
 
 export type Sentiment = 'positive' | 'negative' | 'neutral' | 'urgent'
 
-export type MessageRole = 'user' | 'ai' | 'system'
+export type MessageRole = 'user' | 'system'
 
 export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'closed'
 
